@@ -5,6 +5,7 @@ import statsmodels.api as sm
 from statsmodels.formula.api import glm
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
+from sklearn.dummy import DummyClassifier
 
 from .pipw import ProximalInverseProbWeightingBase
 from .pmr import ProximalMultiplyRobustBase
@@ -70,6 +71,11 @@ if __name__ == "__main__":
     print(datasets[0])
     print(datasets[1])
 
+    # generate A_star, a randomized version of A
+    A_star = np.random.binomial(1, 0.5, n)
+    # compute the empirical probability of observing A_star=1
+    p_A_star = np.array([np.mean(A_star)]*n)
+
     # estimate treatment probabilities using sklearn and pipeline
     # turn off regularization
     model = Pipeline([("logistic", LogisticRegression(penalty=None))])
@@ -77,20 +83,35 @@ if __name__ == "__main__":
     predictors = pandas_data.drop('A', axis=1)
     # pass in values without column names
     model.fit(predictors.values, pandas_data['A'].values)
-    # make predictions using values without column names
-    model_pred = model.predict_proba(predictors.values)
-    # print the learned coefficients of the linear logistic regression model
-    print(model[0].intercept_)
-    print(model[0].coef_)
+    # make predictions using values without column names and keep only the first column
+    # as the first column is the prediction for p(A=1)
+    model_pred = model.predict_proba(predictors.values)[:, 0]
+
+    # compute weights where the numerator is the probability of success in A_sta
+    # weights = (pandas_data['A']*p_A_star + (1-pandas_data['A'])*(1-p_A_star)) / (pandas_data['A']*model_pred + (1-pandas_data['A'])*(1-model_pred))
+    weights = 0.5 / (pandas_data['A']*model_pred + (1-pandas_data['A'])*(1-model_pred))
+    # standardize the weights by dividing by the sum of the weights and multiplying by the size of
+    # the dataset; this makes sure that the weights sum to n
+    weights_stand = weights / np.sum(weights) * n
+
+    # train a dummy classifier for estimating A_star that makes predictions for
+    # each possible class with equal probability
+    model_star = Pipeline([("logistic", DummyClassifier(strategy="uniform"))])
+    predictors = pandas_data.drop('A', axis=1)
+    model_star.fit(predictors.values, pandas_data['A'].values)
 
     # declare an object of type ProximalMultiplyRobustBase, setting setup="a" estimates
     # psi_1
     proximal_estimator = ProximalMultiplyRobustBase(setup="a", num_runs=200)
-    # fit the proximal estimator, which involves fitting the h and q bridge functions
-    proximal_estimator.fit(datasets[0], datasets[1], treatment=model)
+    # fit the proximal estimator, which involves fitting the h and q bridge functions;
+    # pass in model_star to reflect that we are in an MSM
+    proximal_estimator.fit(datasets[0], datasets[1], treatment=model_star)
+    # compute the pseudo-outcome for each row of data
     res = proximal_estimator.evaluate(data)
+    # reweight the pseudo-outcome by the MSM weights
+    res_reweight = res * weights_stand
 
     # according to Corollary 1, the estimate for the mediation term is the empirical average
     # of the output res for each row of the data
     print("ground truth Y(a', M(a)):", np.mean(Y_A1_M_A0))
-    print('estimate of mediation term:', np.mean(res))
+    print('estimate of mediation term:', np.mean(res_reweight))
