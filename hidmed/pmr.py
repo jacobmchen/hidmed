@@ -10,15 +10,20 @@ from .parameters import MIN_PROP_SCORE
 class ProximalMultiplyRobustBase(ProximalEstimatorBase):
     """PMR estimator based on Theorem 3"""
 
-    def fit(self, fit_data, val_data):
+    def fit(self, fit_data, val_data, treatment=None):
         """Fit the PMR estimator"""
+        """JMC: added a third parameter treatment to allow the user to specify
+            a treatment model without the object training one itself"""
         # estimate treatment probability
-        treatment, treatment_params, _ = self.fit_treatment_probability(
-            fit_data,
-            val_data,
-        )
-        self.treatment = treatment
-        self.params["treatment"] = treatment_params
+        if treatment is None:
+            treatment, treatment_params, _ = self.fit_treatment_probability(
+                fit_data,
+                val_data,
+            )
+            self.treatment = treatment
+            self.params["treatment"] = treatment_params
+        else:
+            self.treatment = treatment
 
         # fit bridge functions
         q_fn, q_params, _ = self.fit_bridge(fit_data, val_data, which="q", treatment_prob=treatment)

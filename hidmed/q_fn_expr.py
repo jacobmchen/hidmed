@@ -7,6 +7,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
 
 from .pipw import ProximalInverseProbWeightingBase
+from .pmr import ProximalMultiplyRobustBase
 from .hidmed_data import HidMedDataset
 
 if __name__ == "__main__":
@@ -14,7 +15,7 @@ if __name__ == "__main__":
     np.random.seed(0)
 
     # define the sample size
-    n = 5000
+    n = 1000
 
     # define the standard deviation
     sd = 1
@@ -30,10 +31,10 @@ if __name__ == "__main__":
     A = np.random.binomial(1, expit(X), n)
 
     # generate M as a standard normal
-    M = X + A + np.random.normal(0, 0.1*sd, n)
+    M = X + 2*A + np.random.normal(0, 0.1*sd, n)
 
     # generate Y as a standard normal
-    Y = A + X + M + np.random.normal(0, 0.1*sd, n)
+    Y = 2*A + X + M + np.random.normal(0, 0.1*sd, n)
 
     # generate Z and W as standard normal random variables; in this
     # sim, Z and W are children of only M for simplicity
@@ -42,8 +43,8 @@ if __name__ == "__main__":
 
     # generate potential outcome random variables so that we know what
     # values should be in ground truth
-    M_A0 = X + 0 + np.random.normal(0, 0.1*sd, n)
-    Y_A1_M_A0 = 1 + X + M_A0 + np.random.normal(0, 0.1*sd, n)
+    M_A0 = X + 2*0 + np.random.normal(0, 0.1*sd, n)
+    Y_A1_M_A0 = 2*1 + X + M_A0 + np.random.normal(0, 0.1*sd, n)
 
     # save a pandas dataframe to train the treatment model
     pandas_data = pd.DataFrame({'A': A, 'X': X})
@@ -82,15 +83,14 @@ if __name__ == "__main__":
     print(model[0].intercept_)
     print(model[0].coef_)
 
-    # declare an object of type ProximalInverseProbWeightingBase
-    # change the num_runs parameter to reduce the number of tuning runs it makes
-    proximal_estimator = ProximalInverseProbWeightingBase(setup="a", num_runs=10)
-    # fit a model for the function q_a, pass in the Pipeline object for treatment
+    # declare an object of type ProximalMultiplyRobustBase, setting setup="a" estimates
+    # psi_1
+    proximal_estimator = ProximalMultiplyRobustBase(setup="a", num_runs=200)
+    # fit the proximal estimator, which involves fitting the h and q bridge functions
     proximal_estimator.fit(datasets[0], datasets[1], treatment=model)
-    # make predictions using the fitted model
-    q_eval = proximal_estimator.evaluate_q_fn(data)
-    print(q_eval)
+    res = proximal_estimator.evaluate(data)
 
-    # now get an estimate for the mediation term and compare it with the ground truth
+    # according to Corollary 1, the estimate for the mediation term is the empirical average
+    # of the output res for each row of the data
     print("ground truth Y(a', M(a)):", np.mean(Y_A1_M_A0))
-    print('estimate of mediation term:', np.mean(proximal_estimator.evaluate(data)))
+    print('estimate of mediation term:', np.mean(res))
