@@ -38,6 +38,8 @@ class ProximalEstimatorBase:
         self,
         setup,
         kernel_metric="rbf",
+        # JMC: this parameter num_runs tells how many runs to use
+        # when tuning the hyperparameters in the bridge function
         num_runs=200,
         num_jobs=1,
         verbose=True,
@@ -249,6 +251,7 @@ class ProximalEstimatorBase:
                 [
                     # ("std_scaler", StandardScaler()),
                     # ("poly", PolynomialFeatures(degree=int(degree))),
+                    # JMC: the C here defines regularization strength
                     ("logistic", LogisticRegression(C=C)),
                 ]
             )
