@@ -9,7 +9,10 @@ from sklearn.dummy import DummyClassifier
 
 from .pipw import ProximalInverseProbWeightingBase
 from .pmr import ProximalMultiplyRobustBase
+from .pmr import ProximalMultiplyRobust
 from .hidmed_data import HidMedDataset
+
+import pickle
 
 if __name__ == "__main__":
     # set the seed
@@ -32,10 +35,10 @@ if __name__ == "__main__":
     A = np.random.binomial(1, expit(X), n)
 
     # generate M as a standard normal
-    M = X + 2*A + np.random.normal(0, 0.1*sd, n)
+    M = X + A + np.random.normal(0, 0.1*sd, n)
 
     # generate Y as a standard normal
-    Y = 2*A + X + M + np.random.normal(0, 0.1*sd, n)
+    Y = A + X + M + np.random.normal(0, 0.1*sd, n)
 
     # generate Z and W as standard normal random variables; in this
     # sim, Z and W are children of only M for simplicity
@@ -44,8 +47,8 @@ if __name__ == "__main__":
 
     # generate potential outcome random variables so that we know what
     # values should be in ground truth
-    M_A0 = X + 2*0 + np.random.normal(0, 0.1*sd, n)
-    Y_A1_M_A0 = 2*1 + X + M_A0 + np.random.normal(0, 0.1*sd, n)
+    M_A0 = X + 0 + np.random.normal(0, 0.1*sd, n)
+    Y_A1_M_A0 = 1 + X + M_A0 + np.random.normal(0, 0.1*sd, n)
 
     # save a pandas dataframe to train the treatment model
     pandas_data = pd.DataFrame({'A': A, 'X': X})
@@ -96,20 +99,39 @@ if __name__ == "__main__":
 
     # train a dummy classifier for estimating A_star that makes predictions for
     # each possible class with equal probability
-    model_star = Pipeline([("logistic", DummyClassifier(strategy="uniform"))])
+    model_star = Pipeline([("logistic", DummyClassifier(strategy="prior"))])
     predictors = pandas_data.drop('A', axis=1)
+    # use the dummy model to make predictions for the treatment A; the predictions should
+    # be just all 1s
     model_star.fit(predictors.values, pandas_data['A'].values)
+
+    ### hyperparameter saving
+    # # print the tuned parameters
+    # print(proximal_estimator.param_dict)
+    # # save the tuned parameters into a pickle file
+    # file = open('hyperparams.pkl', 'wb')
+    # pickle.dump(proximal_estimator.param_dict, file)
+    # file.close()
+
+    ### hyper parameter reading
+    # read hyperparameters from the pickle file
+    file = open('hyperparams.pkl', 'rb')
+    tuned_param_dict = pickle.load(file)
+    file.close()
 
     # declare an object of type ProximalMultiplyRobustBase, setting setup="a" estimates
     # psi_1
-    proximal_estimator = ProximalMultiplyRobustBase(setup="a", num_runs=200)
+    # pass in the parameter dictionary that was previously computed for reproducibility
+    proximal_estimator = ProximalMultiplyRobust(setup="a", folds=2, param_dict=tuned_param_dict, num_runs=200)
     # fit the proximal estimator, which involves fitting the h and q bridge functions;
-    # pass in model_star to reflect that we are in an MSM
-    proximal_estimator.fit(datasets[0], datasets[1], treatment=model_star)
-    # compute the pseudo-outcome for each row of data
-    res = proximal_estimator.evaluate(data)
+    # pass in model_star to reflect that we are in an MSM and a seed for reproducibility
+    proximal_estimator.fit(data, seed=0, treatment=model_star)
+
+    # compute the pseudo-outcome for each row of data, pass in reduce as False so we
+    # get the whole array of outputs
+    res = proximal_estimator.evaluate(data, reduce=False)
     # reweight the pseudo-outcome by the MSM weights
-    res_reweight = res * weights_stand
+    res_reweight = res[0] * weights_stand
 
     # according to Corollary 1, the estimate for the mediation term is the empirical average
     # of the output res for each row of the data

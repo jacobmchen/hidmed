@@ -45,8 +45,9 @@ class CrossFittingEstimatorBase:
         else:
             self.param_dict = param_dict
 
-    def fit(self, hidmed_dataset, seed=None):
+    def fit(self, hidmed_dataset, seed=None, treatment=None):
         """Fit an estimator to each fold of the data"""
+        # JMC: added a new parameter that allows us to specify a treatment
         self.data_splits = hidmed_dataset.split(self.folds, seed=seed)
 
         # fit estimator to each fold separately
@@ -69,7 +70,10 @@ class CrossFittingEstimatorBase:
             estimator = self.base_estimator(
                 **self.base_estimator_params, **self.param_dict[i]
             )
-            estimator.fit(fit_data, val_data)
+            if treatment is None:
+                estimator.fit(fit_data, val_data)
+            else:
+                estimator.fit(fit_data, val_data, treatment)
 
             # store estimator
             self.estimators.append(estimator)

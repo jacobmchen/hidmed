@@ -53,7 +53,10 @@ class ProximalMultiplyRobustBase(ProximalEstimatorBase):
             eta_eval = self.eta.predict(eval_data.x)
 
             res = np.zeros(eval_data.n)
+            # JMC: eval_data.n / np.sum(loc1) is essentially the marginal probability of 
+            # observing A = 1
             res[loc1] = q1 * (eval_data.y[loc1, 0] - h1) * eval_data.n / np.sum(loc1)
+            # JMC: eval_data.n / np.sum(loc0) is the marginal probabbility of observing A = 0
             res[loc0] = (h0 - eta_eval[loc0]) * eval_data.n / np.sum(loc0)
             res += eta_eval
             return res
