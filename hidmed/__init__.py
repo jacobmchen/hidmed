@@ -1,3 +1,8 @@
+import os
+# on a Windows machine, set this parameter as 1 to avoid a memory
+# leak
+os.environ['OMP_NUM_THREADS'] = '1'
+
 from .metrics import *
 from .hidmed_data import *
 from .linear_dgp import *

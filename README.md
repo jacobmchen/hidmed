@@ -7,6 +7,8 @@ The goal of this fork is to modify the repository to create a class that is able
 
 Before running, need to install the HOLA package in Python that helps with hyperparameter tuning: https://github.com/blackrock/HOLA. 
 
+To run files in this setup, use "python3 -m hidmed.hidmed_pipeline" at the base of the git repository. Leave out the file extension in the command. When using this command, I think Python will build the whole module. To build the module, the first file Python will run is __init__.py.
+
 Some notes on the edits I make in this repository:
 0. The file q_fn_expr.py contains experiments for learning the syntax for constructing code that will give estimates for the mediation term.
 1. Proposition 1 shows the integral that we must solve for in order to learn the function $a_a$. Note that it takes as input the variables $Z, W, X,$ and $A$. 
@@ -29,3 +31,5 @@ Some notes on the edits I make in this repository:
 18. It is possible to save the tuned hyperparameters by calling the param_dict attribute in the estimator objects. Then, it is possible to pass in the saved parameters into a new estimator object. Coupled with adding a seed for cross-fitting, this ensures reproducible results.
 19. After doing so, it appears that the doubly robust estimator does not care about the specific propensity score estimator that I pass in. This is odd as Theorem 4 requires that both the bridge function h and q be correctly specified in order for the estimates xi_1 to be unbiased.
 20. Created a new class called HidMedPipeline that should make it pretty easy to run the entire proximal pipeline. In general, the more number of cross-validation folds, the better.
+21. When running the code on a Windows machine, we need to set the number of threads to 1. We do so in __init__.py.
+22. The hidmed_pipeline class at the moment does not allow for multiple treatments, but the original code does allow for this. I should investigate and try to update my code to allow for multiple treatments. (It should just be chain ruling the propensity scores together.)
