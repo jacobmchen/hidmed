@@ -144,13 +144,35 @@ class HidMedPipeline():
 
         return res
     
+    def estimate_intervention_term(self, a):
+        """
+        Estimate the intervention term Y(a) using inverse probability weights.
+        """
+        # make sure that we have a propensity score model
+        assert self.propensity_score_model != None, "Error in tune_hyperparameters: need a propensity score model"
+
+        # save the predictors as an np array
+        predictors = np.array(self.data[self.var_name_dict['X']])
+
+        # make predictions for the treatment using the propensity score model
+        model_preds = self.propensity_score_model.predict_proba(predictors)[:, 1]
+
+        # indicator function for A == a
+        indicator = [1 if A_val == a else 0 for A_val in np.array(self.data[var_name_dict['A']])]
+
+        # use IPW to estimate the counterfactual term
+        outcome = np.array(self.data[var_name_dict['Y']]).ravel()
+        intervention_term = np.mean(indicator * outcome / (a*(model_preds) + (1-a)*(1-model_preds)) )
+
+        return intervention_term
+    
 # code for testing the class
 if __name__ == "__main__":
     # set the seed
     np.random.seed(0)
 
     # define the sample size
-    n = 1000
+    n = 500
 
     # define the standard deviation
     sd = 1
@@ -169,8 +191,15 @@ if __name__ == "__main__":
     # generate M as a standard normal
     M = X + A + np.random.normal(0, 0.1*sd, n)
 
+    M_A0 = X + 0 + np.random.normal(0, 0.1*sd, n)
+    M_A1 = X + 1 + np.random.normal(0, 0.1*sd, n)
+
     # generate Y as a standard normal
     Y = A + X + M + np.random.normal(0, 0.1*sd, n)
+
+    Y_A0 = 0 + X + M_A0 + np.random.normal(0, 0.1*sd, n)
+    Y_A1 = 1 + X + M_A1 + np.random.normal(0, 0.1*sd, n)
+    Y_mixed = 1 + X + M_A0 + np.random.normal(0, 0.1*sd, n)
 
     # generate Z and W as standard normal random variables; in this
     # sim, Z and W are children of only M for simplicity
@@ -184,7 +213,7 @@ if __name__ == "__main__":
     var_name_dict = {'A': ['A'], 'X': ['X', 'X2'], 'Y': ['Y'], 'Z': ['Z'], 'W': ['W']}
 
     # create an object of type HidMedPipeline
-    hid_med_pipeline = HidMedPipeline(df, var_name_dict, folds=5)
+    hid_med_pipeline = HidMedPipeline(df, var_name_dict, folds=2)
 
     # learn the propensity score model and print it
     print(hid_med_pipeline.learn_propensity_score_model())
@@ -194,3 +223,10 @@ if __name__ == "__main__":
 
     # evaluate the mediation term and print it
     print(hid_med_pipeline.estimate_mediation_term())
+    print('ground truth Y(0)', np.mean(Y_mixed))
+
+    print(hid_med_pipeline.estimate_intervention_term(0))
+    print('ground truth Y(0)', np.mean(Y_A0))
+
+    print(hid_med_pipeline.estimate_intervention_term(1))
+    print('ground truth Y(1)', np.mean(Y_A1))
