@@ -34,14 +34,14 @@ if __name__ == "__main__":
 
     # create a dictionary mapping canonical variable names to actual variable
     # names
-    var_name_dict = {'A': ['xclamp_duration_binary'],
+    var_name_dict = {'A': ['nadirDO2_binary'],
                      'X': ['creatlst', 'age', 'gender', 'bmi',
                                    'hypertn', 'dm', 'copd', 'chf', 'prior_mi',
                                    'hct', 'hdef', 'statin', 'acearb', 'betablocker',
                                    'rbc_transfusion'],
                      'Y': ['aki'],
-                     'Z': ['delta_KIM.1'],
-                     'W': ['delta_MCP.1']
+                     'Z': ['delta_NGAL'],
+                     'W': ['delta_YKL.40']
                      }
     
     # create a pipeline object
@@ -54,4 +54,8 @@ if __name__ == "__main__":
     hid_med_pipeline.setup_hyperparameters(learn_new_params=True, filename='data_hyperparams.pkl')
 
     # estimate the mediation term
-    print(hid_med_pipeline.estimate_mediation_term())
+    print('mediation term', hid_med_pipeline.estimate_mediation_term())
+
+    # estimate Y(A=1) and Y(A=0)
+    print('Y(A=0)', hid_med_pipeline.estimate_intervention_term(0))
+    print('Y(A=1)', hid_med_pipeline.estimate_intervention_term(1))

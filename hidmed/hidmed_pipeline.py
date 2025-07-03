@@ -158,10 +158,10 @@ class HidMedPipeline():
         model_preds = self.propensity_score_model.predict_proba(predictors)[:, 1]
 
         # indicator function for A == a
-        indicator = [1 if A_val == a else 0 for A_val in np.array(self.data[var_name_dict['A']])]
+        indicator = [1 if A_val == a else 0 for A_val in np.array(self.data[self.var_name_dict['A']])]
 
         # use IPW to estimate the counterfactual term
-        outcome = np.array(self.data[var_name_dict['Y']]).ravel()
+        outcome = np.array(self.data[self.var_name_dict['Y']]).ravel()
         intervention_term = np.mean(indicator * outcome / (a*(model_preds) + (1-a)*(1-model_preds)) )
 
         return intervention_term
